@@ -504,12 +504,28 @@ bool isRed_(Mat statMat,Mat dynMat){
 double white_area(Mat img){
 	int rows = img.rows ;
 	int cols = img.cols ;
+	double countpos=0;
+	int countall=0;
+	for(int j=0;j<rows;j++){
+		for(int i=0;i<cols;i++){
+			// if((int)img.at<uchar>(j,i)>150)
+				countpos+=((int)img.at<uchar>(j,i))/255.0;
+			countall++;
+		}
+	}
+	return countpos/countall;
+
+}
+
+double white_area_stop(Mat img){
+	int rows = img.rows ;
+	int cols = img.cols ;
 	int countpos=0;
 	int countall=0;
 	for(int j=0;j<rows;j++){
 		for(int i=0;i<cols;i++){
-			if((int)img.at<uchar>(j,i)>150)
-				countpos++;
+			// if((int)img.at<uchar>(j,i)>150)
+				countpos+= (int)img.at<uchar>(j,i);
 			countall++;
 		}
 	}
@@ -561,7 +577,7 @@ void runDenseFlow(Mat frame){
     p2 += (chrono::duration_cast<chrono::milliseconds>(chrono::high_resolution_clock::now()-t).count());
 	t = chrono::high_resolution_clock::now();
     // cout<<"next.size(): "<<next.size()<<" and prvs.size(): "<<prvs.size()<<"prvs.channels(): "<<prvs.channels()<<"next.channels(): "<<next.channels()<<endl;
-    calcOpticalFlowFarneback(prvs, next, flow, 0.5, 3, 15, 3, 5, 1.2, 0);
+    calcOpticalFlowFarneback(prvs, next, flow, 0.5, 3, 15, 5, 5, 1.2, 0);
     // cout<<"next.size(): "<<next.size()<<" and prvs.size(): "<<prvs.size()<<endl;
     // visualization
     p3 += (chrono::duration_cast<chrono::milliseconds>(chrono::high_resolution_clock::now()-t).count());
@@ -573,6 +589,8 @@ void runDenseFlow(Mat frame){
     
     normalize(magnitude, magn_norm, 0.0f, 1.0f, NORM_MINMAX);
     
+    // magn_norm*=255.0;
+    Mat dst1 = magn_norm.clone();
     magn_norm.setTo(2, magn_norm < 0.25);
     magn_norm.setTo(85,magn_norm<=0.4);
     magn_norm.setTo(255, magn_norm <=1);
@@ -593,7 +611,7 @@ void runDenseFlow(Mat frame){
     // Mat _hsv[3], hsv, hsv8, bgr;
     // _hsv[0] = angle;
     // _hsv[1] = Mat::ones(angle.size(), CV_32F);
-    // _hsv[2] = magn_norm;
+    // _hsv[2] = dst1;
     // merge(_hsv, 3, hsv);
     // hsv.convertTo(hsv8, CV_8U, 255.0);
     // cvtColor(hsv8, bgr, COLOR_HSV2BGR);
@@ -602,7 +620,7 @@ void runDenseFlow(Mat frame){
     // imshow("frame2", temp1);
     // int keyboard = waitKey(1);
     // if (keyboard == 'q' || keyboard == 27)
-        // break;
+    //     break;
 
     // cout<<
 	// cout<<"magn_norm.size(): "<<magn_norm.size()<<" and dynAVG.size(): "<<dynAVG.size()<<"dynAVG.channels(): "<<dynAVG.channels()<<"magn_norm.channels(): "<<magn_norm.channels()<<endl;
@@ -648,6 +666,9 @@ string type2str(int type) {
 
 int main(int argc, char *argv[]){
 
+	// string results_folder=  "results", points_folder="proj_points", video_folder="videos", background_folder="backgrounds", traffic_folder="traffic_pics", file_seperator="/";
+	string results_folder=  "", points_folder="", video_folder="", background_folder="", traffic_folder="", file_seperator="";
+	string video_format = ".mp4";
 
 	int t1=0,t2=0,t3=0,t4=0,t5=0,t6=0,t7=0,t8=0,t9=0;
 	// auto t;
@@ -660,7 +681,7 @@ int main(int argc, char *argv[]){
 	//argv[4] is if you want to limit the fps
 	//argv[5] is whether you want data to acquire as soon as it is processed or wait for whole one second ;
 		double STATIC_FACTOR=0.0 ;			//This is calculated as the number by which a frame will reduce to half its importance in STATIC_TIME
-	STATIC_FACTOR = 0.9 ; //chnageeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee
+	// STATIC_FACTOR = 0.9 ; //chnageeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee
 	cout<<"STATIC_FACTOR"<<STATIC_FACTOR<<endl ;
 
 	double li[] = {0.998};
@@ -675,18 +696,18 @@ int main(int argc, char *argv[]){
 			bool CAP_ON = true ;
 			int MAXFPS_LIM ;
 			string tempString="" ;
-			string io=argv[1];
-			io+=".txt";
+			string video_name = argv[1];  //e.g. a1b_day
+			string points_file_location = points_folder+file_seperator+video_name+".txt";
 			if(argc>2){
 				tempString=argv[2] ;
 				SS_ON = stoi(tempString)!=0;
 				if(SS_ON)
-					outfile.open(io);
+					outfile.open(points_file_location);
 				else
-					infile.open(io);
+					infile.open(points_file_location);
 			}
 			else{
-				infile.open(io);
+				infile.open(points_file_location);
 			}
 			if(!SS_ON){
 				float fx,fy;
@@ -713,11 +734,10 @@ int main(int argc, char *argv[]){
 
 			//OPen a out file to write
 			ofstream outfile;
-			string inname = argv[1] ;
-			string outname = "results_gpu_final_"+to_string(STATIC_FACTOR)+""+".txt" ;
+			string outname = results_folder+file_seperator+"results_"+video_name+".txt" ;
 			outfile.open(outname.c_str());
 			//Video 
-			string vid_name = argv[1] ;
+			string vid_name = video_folder+file_seperator+ video_name+video_format ;
 			VideoCapture Video_cap(vid_name) ;
 			if(!Video_cap.isOpened()){
 				cout << "Error opening video stream or file" << endl;
@@ -765,12 +785,13 @@ int main(int argc, char *argv[]){
 			//INITIALISATION
 			int height = frame.rows ;
 			int width = frame.cols ;
-			imwrite("intialbkg.jpg",frame) ;
+			// imwrite("intialbkg.jpg",frame) ;
 			// cout<<"done here 3"<<endl;
 			cvtColor(frame, blackwhiteframe, COLOR_BGR2GRAY);
 			// cout<<"done here 4"<<endl;
 
-			staticAVG = imread("background.png", IMREAD_UNCHANGED); ; //STATICAVG of b&w frame of original, no projection
+			string background_file_name="bg_"+video_name+".png";
+			staticAVG = imread(background_folder+file_seperator+background_file_name, IMREAD_UNCHANGED); ; //STATICAVG of b&w frame of original, no projection
 			cvtColor(staticAVG, staticAVG, COLOR_BGR2GRAY);
 
 			// dynAVG=blackwhiteframe.clone();		//DYNAVG of b&w frame of original, no projection
@@ -781,6 +802,13 @@ int main(int argc, char *argv[]){
 				SS=staticAVG.clone();
 				SS=proj(SS,true,SS);
 			}
+
+			Mat trafficProj;
+			string traffic_file_name = "traffic_"+video_name+".png";
+			trafficProj = imread(traffic_folder+file_seperator+traffic_file_name, IMREAD_UNCHANGED);
+			trafficProj = proj(trafficProj,0);
+			imwrite(traffic_folder+file_seperator+"proj_traffic_"+video_name+".jpg",trafficProj);
+
 
 
 
@@ -885,7 +913,13 @@ int main(int argc, char *argv[]){
 				
 				auto t = chrono::high_resolution_clock::now() ;
 
-				if(loop_counter%5==0){
+				if(loop_counter<=0){
+					bool success = Video_cap.read(frame) ;
+					if(!success) {
+						isEND=true ;
+						cout<<"Cannot read frame anymore"<<endl;
+						break ;
+					}
 					float densities[4] = {0.5,0.33,0.33,0.33};
 					t = chrono::high_resolution_clock::now() ;
 					cout<<"GetNextPhaseFLR: "<<GetNextPhaseFLR(densities, 1)<<endl;
@@ -915,7 +949,7 @@ int main(int argc, char *argv[]){
 						cvtColor(frame, blackwhiteframe, COLOR_BGR2GRAY); //TO black and white	
 						
 						if(CAP_ON&&counter!=floor(success_counter*dropratio)){
-							cout<<"skipping frame :"<<counter<<endl;
+							// cout<<"skipping frame :"<<counter<<endl;
 							prvs = blackwhiteframe.clone();
 							continue ;
 						}
@@ -959,7 +993,13 @@ int main(int argc, char *argv[]){
 					// cout<<"SUCCESSCOUNTER = "<<success_counter<<endl ;
 					// cout<<"Loop going with height: "<<height<<" and width: "<<width<<endl ;
 
-					resize(magn_norm, dynAVG, Size(frame.cols,frame.rows));
+					resize(magn_norm, dynAVG, Size(trafficProj.cols,trafficProj.rows));
+					// resize(frame2, frame2, Size(),resize_percent,resize_percent,INTER_CUBIC);
+					// dynAVG = magn_norm.clone();
+					// imshow("magn_norm",magn_norm);
+					// cout<<"magn_norm shape: "<<magn_norm.size()<<endl;
+					// cout<<"dynAVG.size(): "<<dynAVG.size()<<endl;
+
 					// imshow("magn_norm",magn_norm);
 					// imshow("dynAVG", dynAVG);
 					// waitKey(0);
@@ -1037,7 +1077,7 @@ int main(int argc, char *argv[]){
 					// cout<<"blackwhiteframe.size(): "<<blackwhiteframe.size()<<" and dynAVG.size(): "<<dynAVG.size()<<"dynAVG.channels(): "<<dynAVG.channels()<<"blackwhiteframe.channels(): "<<blackwhiteframe.channels()<<endl;
 
 					// cout<<"blackwhiteframe.type(): "<<type2str(blackwhiteframe.type())<<" and dynAVG.type(): "<<type2str(dynAVG.type())<<endl;
-					dynAVG.convertTo(dynAVG, CV_8UC1);
+					dynAVG.convertTo(projDYN, CV_8UC1);
 					// Mat temp2 = cv::abs(blackwhiteframe-dynAVG);
 
 					t2 += (chrono::duration_cast<chrono::milliseconds>(chrono::high_resolution_clock::now()-t).count());
@@ -1057,21 +1097,27 @@ int main(int argc, char *argv[]){
 
 					// bool isRED = isRed(proj(staticAVG_dif,false,SS),proj(dynAVG_dif,false,SS));
 					if(SS_ON){
-						projDYN = proj(dynAVG,0,SS);
+						// projDYN = proj(dynAVG,0,SS);
 						projSTAT = proj(staticAVG_dif,0,SS) ;
 					}else{
-						projDYN = proj(dynAVG,0);
+						// projDYN = proj(dynAVG,0);
 						projSTAT = proj(staticAVG_dif,0) ;
 					}
+
+					// cout<<"projDYN.size(): "<<projDYN.size()<<endl;
 
 					t4 += (chrono::duration_cast<chrono::milliseconds>(chrono::high_resolution_clock::now()-t).count());
 					t = chrono::high_resolution_clock::now();
 
 					isRED = isRed_(projSTAT,projDYN);
 					white_area_variable = white_area(projSTAT);
-					white_area_variable1 = white_area_dyn(projDYN);
+					white_area_variable1 = white_area(projDYN);
+					Mat stop_dens = projSTAT - projDYN;
+					stop_dens.setTo(0,stop_dens<0);
+
+					stop_density = white_area(stop_dens);
 					white_area_variable1 = (white_area_variable1>white_area_variable)?white_area_variable:white_area_variable1;
-					stop_density = white_area_variable - white_area_variable1;
+					// stop_density = white_area_variable - white_area_variable1;
 					
 					find_line(projSTAT) ;
 					line(projSTAT,Point(0,Y),Point(projSTAT.cols,Y),Scalar(255),1) ;
@@ -1088,36 +1134,38 @@ int main(int argc, char *argv[]){
 					//imshow("Difframe",dynAVG_dif) ;
 					
 					//****************************************   U N C O M M E N T   T H E   F O L L O W I N G   F O R    D E  B U G G I N G   *********************************************
-					imshow("Original_Proj",proj(frame,1)) ;
-					
-					Mat stop_dens = projSTAT - projDYN;
-					stop_dens.setTo(0,stop_dens<0);
-					imshow("STOP DENSITY", stop_dens);
+					// imshow("Original_Proj",proj(frame,1)) ;
+				 // 	// Mat tempFrame;
+				 // 	// resize(frame, tempframe, Size(frame.cols/5,frame.rows/5));
+					// // imshow("Frame "+to_string(loop),tempframe);
+					// imshow("STOP DENSITY: ", stop_dens);
 
-					imshow("DYNAMIC",projDYN) ;
+					// imshow("DYNAMIC: ",projDYN) ;
 
-					imshow("STATIC",projSTAT) ;  // ANSWER FRAME
-					waitKey(0);
+					// imshow("STATIC: ",projSTAT) ;  // ANSWER FRAME
+					// cout<<white_area_variable1<<", "<<white_area_variable<<", "<<stop_density<<endl;
+					// waitKey(0);
 					
 					
 					// cout<<"Static_Y: "<<sy<<","<<"Dynamic_Y: "<<dy<<endl ;
 					
 					//writing part
-					string output_ans = to_string(loop)+":"+to_string(white_area_variable)+","+to_string(white_area_variable1)+","+to_string(sy*1.0/projSTAT.rows) ;
+					string output_ans = to_string(loop)+","+to_string(white_area_variable)+","+to_string(stop_density);//+","+to_string(sy*1.0/projSTAT.rows) ;
 					outfile<<output_ans<<endl ;
 					cout<<output_ans<<endl;
 				}
 					cout<<loop++<<endl;
 				
 				// while(WAIT_ON){
-				while(chrono::duration_cast<chrono::microseconds>(chrono::high_resolution_clock::now()-startloop).count()/(loop_counter*1.0) < 1000000){};
+					//Unomment to wait
+				// while(chrono::duration_cast<chrono::microseconds>(chrono::high_resolution_clock::now()-startloop).count()/(loop_counter*1.0) < 1000000){};
 				
 				// }
 
 				// t6 += (chrono::duration_cast<chrono::milliseconds>(chrono::high_resolution_clock::now()-t).count());
 				// t = chrono::high_resolution_clock::now();
 
-				cout<<t1<<" "<<t2<<endl;//" "<<t3<<" "<<t4<<" "<<t5<<" "<<t6<<" "<<t7<<" "<<t8<<" "<<t9<<endl;
+				// cout<<t1<<" "<<t2<<endl;//" "<<t3<<" "<<t4<<" "<<t5<<" "<<t6<<" "<<t7<<" "<<t8<<" "<<t9<<endl;
 
 				
 				// if(waitKey(1)==27) break ;
